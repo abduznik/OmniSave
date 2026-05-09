@@ -1,0 +1,16 @@
+# Binaries
+OmniSave
+OmniSave.exe
+*.o
+
+# Logs and Lockfiles
+*.log
+.omnisave.lock
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Portable Save Data (Don't push your actual saves!)
+portable_saves/
+omnisave.ini
