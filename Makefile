@@ -1,23 +1,18 @@
-CC = clang
-CFLAGS = -Wall -Wextra -std=c11 -O2
+CC = x86_64-w64-mingw32-gcc
+CFLAGS = -Wall -O2 -mwindows
+LIBS = -lshlwapi -lshell32
 
-WIN_CC = x86_64-w64-mingw32-gcc
-WIN_EXEC = OmniSave.exe
-
-SRC = main.c config_parser.c path_utils.c sync_engine.c process_manager.c
+SRC = main.c config.c sync.c launch.c lock.c
 OBJ = $(SRC:.c=.o)
-EXEC = OmniSave
+TARGET = OmniSave.exe
 
-all: $(EXEC)
+all: $(TARGET)
 
-$(EXEC): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
-
-windows:
-	$(WIN_CC) $(CFLAGS) -o $(WIN_EXEC) $(SRC)
+$(TARGET): $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 %.o: %.c omnisave.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(EXEC) $(WIN_EXEC)
+	rm -f $(OBJ) $(TARGET)

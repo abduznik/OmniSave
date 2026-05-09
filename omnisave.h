@@ -1,57 +1,34 @@
 #ifndef OMNISAVE_H
 #define OMNISAVE_H
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <dirent.h>
-
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#include <windows.h>
-#endif
-
 #include <time.h>
-#include <stdbool.h>
-#include <errno.h>
+#include <shlobj.h> 
 
-#ifndef MAX_PATH
-#define MAX_PATH 1024
-#endif
-#define MAX_CMD 2048
+#define MAX_PATH_LEN 1024
+#define CONFIG_FILE "omnisave.ini"
+#define LOG_FILE "omnisave.log"
 
-#define MAX_SYNC_PATHS 10
-
-// Sync path pair
 typedef struct {
-    char host_path[MAX_PATH];
-    char portable_path[MAX_PATH];
-} SyncPair;
+    char launch_command[MAX_PATH_LEN];
+    char launch_args[MAX_PATH_LEN];
+    char local_path[MAX_PATH_LEN];
+    char remote_path[MAX_PATH_LEN];
+} Config;
 
-// Configuration structure
-typedef struct {
-    char target_game_exe[MAX_PATH];
-    char launch_command[MAX_CMD];
-    SyncPair sync_paths[MAX_SYNC_PATHS];
-    int sync_path_count;
-} OmniConfig;
+void log_info(const char* format, ...);
+void log_error(const char* format, ...);
+int load_config(Config* cfg, const char* ini_path, const char* base_dir);
+int sync_folders(const char* src, const char* dst);
 
-// config_parser.c
-bool parse_config(const char *filename, OmniConfig *config);
+int launch_game(const char* command, const char* args, const char* base_dir); 
 
-// path_utils.c
-void expand_tilde(const char *path, char *expanded_path, size_t max_len);
-void resolve_dynamic_path(const char *input_path, char *resolved_path, size_t max_len);
-
-// sync_engine.c
-time_t get_latest_mtime(const char *dir_path);
-bool copy_dir_recursive(const char *src, const char *dest);
-bool create_backup(const char *dir_path);
-
-// process_manager.c
-bool launch_and_wait(const char *command);
+int acquire_lock();
+void release_lock();
 
 #endif // OMNISAVE_H

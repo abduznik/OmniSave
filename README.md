@@ -1,45 +1,50 @@
-# OmniSave 🛸
-**The "Braindead" Portable Game Sync Engine**
+# OmniSave
 
-OmniSave is a lightweight, zero-configuration sync engine designed to make Windows games truly portable across different machines and operating systems (macOS via CrossOver/Wine, Linux, and Windows).
+OmniSave is a lightweight, portable game save synchronization tool for Windows, specifically designed to run reliably under **Wine and CrossOver**.
 
-It acts as a silent "Proxy" between your launcher and the game, ensuring your save data is always with you on your USB drive or external SSD, without ever needing to install software on the host machine.
+It acts as a "Launch Wrapper" that automates the process of fetching your saves from a portable location (like a USB drive or a cloud-synced folder), launching the game, and then backing up your progress immediately after you finish playing.
 
-## 🚀 Features
-- **Zero-Install Proxy:** Simply rename your game's original `.exe` and drop OmniSave in its place.
-- **Dynamic Save Discovery:** Automatically resolves complex Windows paths like `~/Documents` and `~/AppData` within Wine/CrossOver environments.
-- **Silent Operation:** Runs invisibly in the background. No CMD windows, no popups.
-- **Anti-Loop Protection:** Implements Windows Named Mutexes to prevent infinite spawn loops triggered by aggressive "Self-Healing" game launchers (like GTA V).
-- **Auto-Sync:** Performs a high-speed pre-flight sync before the game starts and a post-flight sync after you exit.
-- **Braindead Setup:** Includes a CLI wizard that configures everything for you in seconds.
+## Key Features
 
-## 🛠 How it Works
-1. OmniSave replaces the main game executable (e.g., `PlayGtaV.exe`).
-2. When launched, it checks the USB for newer save files and copies them to the host's `Documents/AppData`.
-3. It launches the *real* game binary (e.g., `PlayGtaV_original.exe`).
-4. It sits silently in memory, acting as a dummy launcher to satisfy anti-cheat/DRM checks.
-5. Once the game closes, it syncs your new progress back to the USB.
+- **Sync-Launch-Sync Architecture**: Ensures your local environment is up-to-date before playing and your remote backup is updated after.
+- **Process Polling**: Unlike standard wrappers that wait for a process handle, OmniSave polls the system memory. This allows it to stay alive even if the game launcher (like Rockstar Launcher) detaches or spawns background child processes.
+- **Launch Arguments Support**: Pass arbitrary boot flags (like `-nobattleye` or `-windowed`) directly to the game.
+- **Path Resolution**: Supports `~/` expansion for user profile directories and `./` for relative portable paths.
+- **Mutex Locking**: Prevents multiple instances from running simultaneously to avoid save corruption.
 
-## 📦 Project Structure
-- `main.c`: Core logic, Setup Wizard, and Proxy orchestration.
-- `sync_engine.c`: Recursive, high-performance directory synchronization.
-- `path_utils.c`: Cross-platform path resolution (Wine/macOS/Windows).
-- `config_parser.c`: Lightweight INI configuration handler.
-- `process_manager.c`: Native process spawning and monitoring.
+## How It Works
 
-## 🚧 Current Status & Known Issues
-- **Status:** Functional Beta. Currently optimized for GTA V and Rockstar Games titles.
-- **Issue:** Large `Documents` folders can cause slow syncs if the user doesn't narrow down the `omnisave.ini` paths (Fix: Use specific subfolders in `.ini`).
-- **Issue:** Some Wine environments may require specific Mutex permissions for global namespace access.
+1. **Pre-Sync**: Copies files from `Remote_Path` to `Local_Path`.
+2. **Launch**: Executes the `Launch_Command` with any `Launch_Args`.
+3. **Monitor**: Waits for the specific executable to appear in memory and then monitors it until it terminates.
+4. **Post-Sync**: Copies updated files from `Local_Path` back to `Remote_Path`.
 
-## 🔨 Building
-```bash
-# macOS Build
-make
+## Configuration (`omnisave.ini`)
 
-# Windows Build (requires mingw-w64)
-make windows
+Place `omnisave.ini` in the same directory as `OmniSave.exe`.
+
+```ini
+[OmniSave]
+; The executable name to launch and monitor
+Launch_Command=GTA5.exe
+
+; Optional command line arguments
+Launch_Args=-nobattleye
+
+; The local path where the game expects saves (supports ~/)
+Local_Path=~/Documents/Rockstar Games/GTA V
+
+; The remote path for backups (supports ./)
+Remote_Path=./portable_saves/GTA_V
 ```
 
----
-*Created with ❤️ for the portable gaming community.*
+## Build Instructions
+
+Built using MinGW-w64 for cross-platform compatibility.
+
+```bash
+make clean && make
+```
+
+## License
+MIT
