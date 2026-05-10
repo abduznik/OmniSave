@@ -37,7 +37,7 @@ void expand_path(char* path, const char* base_dir) {
             for(int i = 0; expanded[i]; i++) {
                 if(expanded[i] == '/') expanded[i] = '\\';
             }
-            strncpy(path, expanded, MAX_PATH_LEN);
+            snprintf(path, MAX_PATH_LEN, "%s", expanded);
         }
     } 
     else if (strncmp(path, "./", 2) == 0) {
@@ -45,7 +45,7 @@ void expand_path(char* path, const char* base_dir) {
         for(int i = 0; expanded[i]; i++) {
             if(expanded[i] == '/') expanded[i] = '\\';
         }
-        strncpy(path, expanded, MAX_PATH_LEN);
+        snprintf(path, MAX_PATH_LEN, "%s", expanded);
     }
 }
 

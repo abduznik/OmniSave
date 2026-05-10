@@ -26,6 +26,7 @@ static int mock_process_count = 0;
 static int last_error = 0;
 static char mock_profile_dir[MAX_PATH_LEN] = "/Users/mockuser";
 static char mock_module_path[MAX_PATH_LEN] = "/mock/OmniSave.exe";
+static char last_launched_cmd[MAX_CMDLINE_LEN] = {0};
 
 // --- Mock Control Interface ---
 
@@ -33,6 +34,7 @@ void mock_reset() {
     mock_file_count = 0;
     mock_process_count = 0;
     last_error = 0;
+    memset(last_launched_cmd, 0, MAX_CMDLINE_LEN);
 }
 
 void mock_fs_add_file(const char* path, int is_dir, unsigned long long time) {
@@ -130,12 +132,65 @@ void p_find_close(PHandle handle) {
 
 int p_copy_file(const char* src, const char* dst) {
     if (last_error != 0) return 0; // Simulate failure
+    // In mock, we don't actually move bits, but we can add the dst to mock_fs
+    // However, the test expects p_copy_file to be followed by p_move_file_atomic
+    // So let's just simulate the "temp file" creation if it ends in .omnitmp
+    if (strstr(dst, ".omnitmp")) {
+        mock_fs_add_file(dst, 0, 1000); // Dummy time
+    }
     return 1;
+}
+
+int p_move_file_atomic(const char* src, const char* dst) {
+    if (last_error != 0) return 0;
+    // Remove src, add/update dst
+    p_delete_file(src);
+    mock_fs_add_file(dst, 0, 1000);
+    return 1;
+}
+
+int p_delete_file(const char* path) {
+    for (int i = 0; i < mock_file_count; i++) {
+        if (strcmp(mock_files[i].path, path) == 0) {
+            // Shift remaining
+            for (int j = i; j < mock_file_count - 1; j++) {
+                mock_files[j] = mock_files[j+1];
+            }
+            mock_file_count--;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int p_delete_directory_recursive(const char* path) {
+    int deleted_count = 0;
+    for (int i = 0; i < mock_file_count; ) {
+        if (strstr(mock_files[i].path, path) == mock_files[i].path) {
+            // Delete this entry
+            for (int j = i; j < mock_file_count - 1; j++) {
+                mock_files[j] = mock_files[j+1];
+            }
+            mock_file_count--;
+            deleted_count++;
+            // Don't increment i
+        } else {
+            i++;
+        }
+    }
+    return deleted_count > 0;
 }
 
 int p_file_exists(const char* path) {
     for (int i = 0; i < mock_file_count; i++) {
         if (strcmp(mock_files[i].path, path) == 0 && !mock_files[i].is_dir) return 1;
+    }
+    return 0;
+}
+
+int p_directory_exists(const char* path) {
+    for (int i = 0; i < mock_file_count; i++) {
+        if (strcmp(mock_files[i].path, path) == 0 && mock_files[i].is_dir) return 1;
     }
     return 0;
 }
@@ -155,7 +210,16 @@ int p_is_process_running(const char* process_name) {
 }
 
 int p_launch_process(const char* command, const char* args, const char* work_dir) {
+    if (args && strlen(args) > 0) {
+        snprintf(last_launched_cmd, MAX_CMDLINE_LEN, "\"%s\" %s", command, args);
+    } else {
+        snprintf(last_launched_cmd, MAX_CMDLINE_LEN, "\"%s\"", command);
+    }
     return 1;
+}
+
+void p_get_last_launched_command(char* out) {
+    strncpy(out, last_launched_cmd, MAX_CMDLINE_LEN);
 }
 
 void p_sleep(int ms) {

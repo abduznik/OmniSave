@@ -19,14 +19,37 @@ void ensure_dir(const char* path) {
     p_create_directory(temp);
 }
 
-int sync_folders(const char* src, const char* dst) {
+void cleanup_temp_files(const char* dst) {
     char search_path[MAX_PATH_LEN];
     PFileInfo info;
     PHandle hFind = NULL;
 
-    log_info("Syncing: %s -> %s", src, dst);
-    ensure_dir(dst);
+    snprintf(search_path, MAX_PATH_LEN, "%s\\*", dst);
+    hFind = p_find_first(search_path, &info);
 
+    if (hFind != NULL) {
+        do {
+            if (strstr(info.name, ".omnitmp")) {
+                char tmp_path[MAX_PATH_LEN];
+                snprintf(tmp_path, MAX_PATH_LEN, "%s\\%s", dst, info.name);
+                log_info("Cleaning up stale temp file: %s", info.name);
+                p_delete_file(tmp_path);
+            }
+        } while (p_find_next(hFind, &info));
+        p_find_close(hFind);
+    }
+}
+
+int sync_folders(const char* src, const char* dst, int propagate_deletes) {
+    char search_path[MAX_PATH_LEN];
+    PFileInfo info;
+    PHandle hFind = NULL;
+
+    log_info("Syncing: %s -> %s (Propagate Deletes: %d)", src, dst, propagate_deletes);
+    ensure_dir(dst);
+    cleanup_temp_files(dst);
+
+    // --- PASS 1: Copy/Update ---
     snprintf(search_path, MAX_PATH_LEN, "%s\\*", src);
     hFind = p_find_first(search_path, &info);
 
@@ -51,7 +74,7 @@ int sync_folders(const char* src, const char* dst) {
         snprintf(dst_file, MAX_PATH_LEN, "%s\\%s", dst, info.name);
 
         if (info.is_dir) {
-            if (!sync_folders(src_file, dst_file)) {
+            if (!sync_folders(src_file, dst_file, propagate_deletes)) {
                 all_success = 0;
             }
         } else {
@@ -66,9 +89,19 @@ int sync_folders(const char* src, const char* dst) {
             }
 
             if (should_copy) {
-                log_info("Copying: %s", info.name);
-                if (!p_copy_file(src_file, dst_file)) {
-                    log_error("Failed to copy %s: %lu", info.name, p_get_last_error());
+                char tmp_file[MAX_PATH_LEN];
+                snprintf(tmp_file, MAX_PATH_LEN, "%s.omnitmp", dst_file);
+
+                log_info("Copying (Atomic): %s", info.name);
+                if (p_copy_file(src_file, tmp_file)) {
+                    if (!p_move_file_atomic(tmp_file, dst_file)) {
+                        log_error("Failed to commit atomic write for %s: %lu", info.name, p_get_last_error());
+                        p_delete_file(tmp_file);
+                        all_success = 0;
+                    }
+                } else {
+                    log_error("Failed to copy %s to temp: %lu", info.name, p_get_last_error());
+                    p_delete_file(tmp_file);
                     all_success = 0;
                 }
             }
@@ -76,5 +109,34 @@ int sync_folders(const char* src, const char* dst) {
     } while (p_find_next(hFind, &info));
 
     p_find_close(hFind);
+
+    // --- PASS 2: Deletion Propagation ---
+    if (propagate_deletes) {
+        snprintf(search_path, MAX_PATH_LEN, "%s\\*", dst);
+        hFind = p_find_first(search_path, &info);
+        if (hFind != NULL) {
+            do {
+                if (strcmp(info.name, ".") == 0 || strcmp(info.name, "..") == 0) continue;
+
+                char src_check[MAX_PATH_LEN];
+                char dst_check[MAX_PATH_LEN];
+                snprintf(src_check, MAX_PATH_LEN, "%s\\%s", src, info.name);
+                snprintf(dst_check, MAX_PATH_LEN, "%s\\%s", dst, info.name);
+
+                int exists_in_src = info.is_dir ? p_directory_exists(src_check) : p_file_exists(src_check);
+
+                if (!exists_in_src) {
+                    log_info("Deleting (Stale): %s", info.name);
+                    if (info.is_dir) {
+                        p_delete_directory_recursive(dst_check);
+                    } else {
+                        p_delete_file(dst_check);
+                    }
+                }
+            } while (p_find_next(hFind, &info));
+            p_find_close(hFind);
+        }
+    }
+
     return all_success;
 }

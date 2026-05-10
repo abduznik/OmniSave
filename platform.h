@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 #define MAX_PATH_LEN 1024
+#define MAX_CMDLINE_LEN 4096
 
 typedef void* PHandle;
 
@@ -20,7 +21,11 @@ PHandle p_find_first(const char* path, PFileInfo* info);
 int p_find_next(PHandle handle, PFileInfo* info);
 void p_find_close(PHandle handle);
 int p_copy_file(const char* src, const char* dst);
+int p_move_file_atomic(const char* src, const char* dst);
+int p_delete_file(const char* path);
+int p_delete_directory_recursive(const char* path);
 int p_file_exists(const char* path);
+int p_directory_exists(const char* path);
 unsigned long long p_get_file_time(const char* path);
 
 // Process

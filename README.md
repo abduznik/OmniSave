@@ -1,6 +1,6 @@
 # OmniSave
 
-OmniSave is a lightweight, portable game save synchronization tool for Windows, specifically designed to run reliably under **Wine**, **CrossOver**, and **GameHub** (Winlator/Box64) environments.
+OmniSave v0.2.0 is a lightweight, portable game save synchronization tool for Windows, specifically designed to run reliably under **Wine**, **CrossOver**, and **GameHub** (Winlator/Box64) environments.
 
 It acts as a "Launch Wrapper" that automates the process of fetching your saves from a portable location (like a USB drive or a cloud-synced folder), launching the game, and then backing up your progress immediately after you finish playing.
 
@@ -111,6 +111,20 @@ Built using MinGW-w64 for cross-platform compatibility.
 ```bash
 make clean && make
 ```
+
+## Changelog
+
+### v0.2.0
+- **Safety Fix**: Replaced `strncpy` with `snprintf` in path expansion to ensure proper null-termination.
+- **Robustness Fix**: Increased internal command-line buffer to 4096 characters to prevent truncation during launch.
+- **New Feature**: Atomic file writes via temporary `.omnitmp` files.
+- **New Feature**: Deletion propagation support (Local -> Remote) during post-sync.
+- **Testing**: Added buffer safety and null-termination unit tests.
+
+### v0.1.0
+- Initial release with Sync-Launch-Sync architecture.
+- Process polling support for launcher compatibility.
+- Unit testing framework integration.
 
 ## License
 MIT

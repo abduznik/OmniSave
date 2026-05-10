@@ -39,9 +39,45 @@ int p_copy_file(const char* src, const char* dst) {
     return CopyFileA(src, dst, FALSE) != 0;
 }
 
+int p_move_file_atomic(const char* src, const char* dst) {
+    return MoveFileExA(src, dst, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+}
+
+int p_delete_file(const char* path) {
+    return DeleteFileA(path) != 0;
+}
+
+int p_delete_directory_recursive(const char* path) {
+    char search_path[MAX_PATH_LEN];
+    snprintf(search_path, MAX_PATH_LEN, "%s\\*", path);
+
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA(search_path, &fd);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            if (strcmp(fd.cFileName, ".") != 0 && strcmp(fd.cFileName, "..") != 0) {
+                char sub_path[MAX_PATH_LEN];
+                snprintf(sub_path, MAX_PATH_LEN, "%s\\%s", path, fd.cFileName);
+                if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                    p_delete_directory_recursive(sub_path);
+                } else {
+                    DeleteFileA(sub_path);
+                }
+            }
+        } while (FindNextFileA(hFind, &fd));
+        FindClose(hFind);
+    }
+    return RemoveDirectoryA(path) != 0;
+}
+
 int p_file_exists(const char* path) {
     DWORD dwAttrib = GetFileAttributesA(path);
     return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+int p_directory_exists(const char* path) {
+    DWORD dwAttrib = GetFileAttributesA(path);
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 unsigned long long p_get_file_time(const char* path) {

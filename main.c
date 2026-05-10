@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     freopen(log_path, "a", stdout);
     freopen(log_path, "a", stderr);
 
-    log_info("--- OmniSave Started ---");
+    log_info("--- OmniSave v%s Started ---", OMNISAVE_VERSION);
 
     if (!acquire_lock()) {
         p_show_error("Error", "OmniSave is already running or cannot start.");
@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     }
 
     log_info("Starting Pre-sync...");
-    if (!sync_folders(cfg.remote_path, cfg.local_path)) {
+    if (!sync_folders(cfg.remote_path, cfg.local_path, 0)) {
         log_error("Pre-sync failed.");
     } else {
         log_info("Pre-sync completed successfully.");
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
     launch_game(cfg.launch_command, cfg.launch_args, base_path); 
 
     log_info("Starting Post-sync...");
-    if (!sync_folders(cfg.local_path, cfg.remote_path)) {
+    if (!sync_folders(cfg.local_path, cfg.remote_path, 1)) {
         log_error("Post-sync failed.");
     } else {
         log_info("Post-sync completed successfully.");

@@ -13,6 +13,13 @@ int launch_game(const char* command, const char* args, const char* base_dir) {
     log_info("Arguments: %s", args);
     log_info("Working Directory: %s", base_dir);
 
+    char cmd_line[MAX_CMDLINE_LEN];
+    if (args && strlen(args) > 0) {
+        snprintf(cmd_line, MAX_CMDLINE_LEN, "\"%s\" %s", full_command, args);
+    } else {
+        snprintf(cmd_line, MAX_CMDLINE_LEN, "\"%s\"", full_command);
+    }
+
     if (p_launch_process(full_command, args, base_dir)) {
         log_info("Process created. Waiting for %s memory presence...", command);
         
