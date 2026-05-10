@@ -8,38 +8,36 @@ It acts as a "Launch Wrapper" that automates the process of fetching your saves 
 
 OmniSave "fakes" a local installation by redirecting your save files. It ensures that the game always finds your saves in the expected system directory (like `Documents` or `AppData`), even when your actual data lives on a portable drive.
 
+### 1. Storage Architecture
+The wrapper bridges the gap between your portable storage and the system's local save directory.
+
 ```mermaid
 flowchart LR
-    subgraph "Portable Drive / Cloud"
-        Remote[(Backup Saves)]
-    end
+    Portable[(Portable Drive / Cloud)]
+    Local[(Local System Path)]
+    Game{Game Process}
 
-    subgraph "OmniSave Orchestrator"
-        direction TB
-        Start([Start]) --> SyncIn[Pre-Sync: Pull]
-        SyncIn --> Exec[Execute Game]
-        Exec --> Monitor{Polling Memory}
-        Monitor -- "Still Playing" --> Monitor
-        Monitor -- "Quit Game" --> SyncOut[Post-Sync: Push]
-        SyncOut --> End([Exit])
-    end
-
-    subgraph "Target Environment (Wine/CrossOver)"
-        Local[(Local AppData/Docs)]
-    end
-
-    Remote ==>|"1. Initialization"| Local
-    Local -.->|"2. Game Session"| Monitor
-    Local ==>|"3. Persist Changes"| Remote
-
-    %% Styling
-    classDef storage fill:#2d3436,color:#dfe6e9,stroke:#636e72
-    classDef process fill:#0984e3,color:#fff,stroke:#74b9ff
-    classDef action fill:#00b894,color:#fff,stroke:#55efc4
+    Portable <==>|"1. Sync Saves"| Local
+    Local <-->|"2. Native I/O"| Game
     
-    class Remote,Local storage
-    class Start,End,Exec process
-    class SyncIn,SyncOut action
+    classDef storage fill:#2d3436,color:#dfe6e9,stroke:#636e72
+    class Local,Portable storage
+```
+
+### 2. Execution Lifecycle
+OmniSave manages the entire gaming session from start to finish.
+
+```mermaid
+flowchart TD
+    Start([Launch OmniSave]) --> Pull[Pre-Sync: Remote to Local]
+    Pull --> Exec[Execute Game & Args]
+    Exec --> Poll{Poll Process List}
+    Poll -- "Running" --> Poll
+    Poll -- "Exited" --> Push[Post-Sync: Local to Remote]
+    Push --> End([Cleanup & Exit])
+
+    classDef action fill:#00b894,color:#fff,stroke:#55efc4
+    class Pull,Push action
 ```
 
 ## Inspiration & Goals
