@@ -1,19 +1,18 @@
 #include "omnisave.h"
 
-static HANDLE hMutex = NULL;
+static PHandle hMutex = NULL;
 
 int acquire_lock() {
-    // Create a named mutex. The second parameter TRUE means we request initial ownership.
-    hMutex = CreateMutexA(NULL, TRUE, "OmniSaveLock");
+    hMutex = p_create_mutex("OmniSaveLock");
 
     if (hMutex == NULL) {
-        log_error("Could not create mutex: %lu", GetLastError());
+        log_error("Could not create mutex: %lu", p_get_last_error());
         return 0;
     }
 
-    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+    if (p_is_already_running()) {
         log_error("OmniSave is already running (Mutex exists).");
-        CloseHandle(hMutex);
+        p_close_handle(hMutex);
         hMutex = NULL;
         return 0;
     }
@@ -24,8 +23,8 @@ int acquire_lock() {
 
 void release_lock() {
     if (hMutex != NULL) {
-        ReleaseMutex(hMutex);
-        CloseHandle(hMutex);
+        p_release_mutex(hMutex);
+        p_close_handle(hMutex);
         hMutex = NULL;
         log_info("Mutex lock released.");
     }

@@ -14,3 +14,7 @@ Thumbs.db
 # Portable Save Data (Don't push your actual saves!)
 portable_saves/
 omnisave.ini
+
+# Testing
+test_runner
+vendor/

@@ -81,7 +81,28 @@ Remote_Path=./portable_saves/GTA_V
 ## Roadmap
 
 - **Safety Enhancements**: Implementing atomic file writes and integrity checks during sync to prevent data loss on sudden power-off.
-- **Linux/Steam Deck Support**: Native Linux builds with automated **Proton Prefix** detection. Since each game on Linux/Proton lives in its own isolated folder (compatdata), OmniSave will automate the path discovery for these environments.
+- Linux/Steam Deck Support: Native Linux builds with automated Proton Prefix detection. Since each game on Linux/Proton lives in its own isolated folder (compatdata), OmniSave will automate the path discovery for these environments.
+
+## Testing
+
+OmniSave uses the [Unity](https://github.com/ThrowTheSwitch/Unity) test framework and a platform abstraction layer to allow unit testing on non-Windows systems.
+
+### Running Tests Locally
+
+To run the unit tests on macOS or Linux:
+
+```bash
+make test
+```
+
+This will:
+1. Clone the Unity framework into `vendor/`.
+2. Compile the core logic with a mock platform layer.
+3. Run the test suite and report results.
+
+### CI/CD
+
+All pushes and pull requests are automatically tested via GitHub Actions on Ubuntu, verifying both the unit tests and the MinGW cross-compilation for Windows.
 
 ## Build Instructions
 

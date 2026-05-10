@@ -1,5 +1,4 @@
 #include "omnisave.h"
-#include <shlwapi.h>
 
 void ensure_dir(const char* path) {
     char temp[MAX_PATH_LEN];
@@ -8,72 +7,74 @@ void ensure_dir(const char* path) {
 
     snprintf(temp, sizeof(temp), "%s", path);
     len = strlen(temp);
-    if (temp[len - 1] == '\\') temp[len - 1] = 0;
+    if (temp[len - 1] == '\\' || temp[len - 1] == '/') temp[len - 1] = 0;
     for (p = temp + 1; *p; p++) {
-        if (*p == '\\') {
+        if (*p == '\\' || *p == '/') {
+            char sep = *p;
             *p = 0;
-            CreateDirectoryA(temp, NULL);
-            *p = '\\';
+            p_create_directory(temp);
+            *p = sep;
         }
     }
-    CreateDirectoryA(temp, NULL);
+    p_create_directory(temp);
 }
 
 int sync_folders(const char* src, const char* dst) {
     char search_path[MAX_PATH_LEN];
-    WIN32_FIND_DATAA fd;
-    HANDLE hFind = NULL;
+    PFileInfo info;
+    PHandle hFind = NULL;
 
     log_info("Syncing: %s -> %s", src, dst);
     ensure_dir(dst);
 
     snprintf(search_path, MAX_PATH_LEN, "%s\\*", src);
-    hFind = FindFirstFileA(search_path, &fd);
+    hFind = p_find_first(search_path, &info);
 
-    if (hFind == INVALID_HANDLE_VALUE) {
+    if (hFind == NULL) {
         log_error("Could not open source directory: %s", src);
         return 0;
     }
 
+    int all_success = 1;
+
     do {
         // Skip current dir, parent dir, AND macOS hidden AppleDouble files
-        if (strcmp(fd.cFileName, ".") == 0 || 
-            strcmp(fd.cFileName, "..") == 0 ||
-            strncmp(fd.cFileName, "._", 2) == 0) { 
+        if (strcmp(info.name, ".") == 0 || 
+            strcmp(info.name, "..") == 0 ||
+            strncmp(info.name, "._", 2) == 0) { 
             continue;
         }
 
         char src_file[MAX_PATH_LEN];
         char dst_file[MAX_PATH_LEN];
-        snprintf(src_file, MAX_PATH_LEN, "%s\\%s", src, fd.cFileName);
-        snprintf(dst_file, MAX_PATH_LEN, "%s\\%s", dst, fd.cFileName);
+        snprintf(src_file, MAX_PATH_LEN, "%s\\%s", src, info.name);
+        snprintf(dst_file, MAX_PATH_LEN, "%s\\%s", dst, info.name);
 
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            sync_folders(src_file, dst_file);
+        if (info.is_dir) {
+            if (!sync_folders(src_file, dst_file)) {
+                all_success = 0;
+            }
         } else {
-            HANDLE hDst = CreateFileA(dst_file, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
             int should_copy = 1;
+            unsigned long long src_time = info.last_write_time;
+            unsigned long long dst_time = p_get_file_time(dst_file);
 
-            if (hDst != INVALID_HANDLE_VALUE) {
-                FILETIME ftSrc = fd.ftLastWriteTime;
-                FILETIME ftDst;
-                if (GetFileTime(hDst, NULL, NULL, &ftDst)) {
-                    if (CompareFileTime(&ftSrc, &ftDst) <= 0) {
-                        should_copy = 0; 
-                    }
+            if (dst_time > 0) {
+                if (src_time <= dst_time) {
+                    should_copy = 0; 
                 }
-                CloseHandle(hDst);
             }
 
             if (should_copy) {
-                log_info("Copying: %s", fd.cFileName);
-                if (!CopyFileA(src_file, dst_file, FALSE)) {
-                    log_error("Failed to copy %s: %lu", fd.cFileName, GetLastError());
+                log_info("Copying: %s", info.name);
+                if (!p_copy_file(src_file, dst_file)) {
+                    log_error("Failed to copy %s: %lu", info.name, p_get_last_error());
+                    all_success = 0;
                 }
             }
         }
-    } while (FindNextFileA(hFind, &fd));
+    } while (p_find_next(hFind, &info));
 
-    FindClose(hFind);
-    return 1;
+    p_find_close(hFind);
+    return all_success;
 }
