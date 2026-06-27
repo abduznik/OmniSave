@@ -1,3 +1,9 @@
+## Support This Project
+
+> **All projects made with passion** 💙
+
+[![Sponsor me](https://img.shields.io/badge/❤️%20Sponsor-GitHub-red?style=for-the-badge)](https://github.com/sponsors/abduznik)
+
 # OmniSave
 
 OmniSave v0.2.0 is a lightweight, portable game save synchronization tool for Windows, specifically designed to run reliably under **Wine**, **CrossOver**, and **GameHub** (Winlator/Box64) environments.
